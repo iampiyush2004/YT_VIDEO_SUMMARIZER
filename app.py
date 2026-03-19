@@ -26,7 +26,17 @@ def extract_transcript_details(youtube_video_url):
             raise ValueError("Invalid YouTube URL")
 
         api = YouTubeTranscriptApi()
-        transcript_data = api.fetch(video_id)
+        list_transcripts = api.list(video_id)
+        
+        # Try to find English, then just take the first available if English not found
+        try:
+            transcript_data = list_transcripts.find_transcript(['en']).fetch()
+        except Exception:
+            # If English not found, let's just take the first one available
+            available_transcripts = list(list_transcripts)
+            if not available_transcripts:
+                raise ValueError("No transcripts found for this video.")
+            transcript_data = available_transcripts[0].fetch()
 
         transcript = " ".join([i.text for i in transcript_data])
 
@@ -59,12 +69,15 @@ if youtube_link:
         st.image(f"http://img.youtube.com/vi/{video_id}/0.jpg", use_container_width=True)
 
 if st.button("Get Detailed Notes"):
-    transcript_text=extract_transcript_details(youtube_link)
+    try:
+        transcript_text=extract_transcript_details(youtube_link)
 
-    if transcript_text:
-        summary=generate_gemini_content(transcript_text,prompt)
-        st.markdown("## Detailed Notes:")
-        st.write(summary)
+        if transcript_text:
+            summary=generate_gemini_content(transcript_text,prompt)
+            st.markdown("## Detailed Notes:")
+            st.write(summary)
+    except Exception as e:
+        st.error(f"Error: {str(e)}")
 
 
 
